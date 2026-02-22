@@ -579,7 +579,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--update_every", type=int, default=64)
     parser.add_argument("--log_every", type=int, default=1000)
-    parser.add_argument("--eval_every", type=int, default=10000)
+    parser.add_argument("--eval_every", type=int, default=2500)
     parser.add_argument("--save_every", type=int, default=10000)
     parser.add_argument("--save_path", type=str, default="blazing_ppo")
     parser.add_argument("--collect_batch", type=int, default=None,
