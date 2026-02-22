@@ -15,7 +15,10 @@ Special cards:
 
 Rules:
   - Match top card by suit OR rank (unless playing 8 or Swap)
-  - Can't play → draw 1; if drawn card is playable, play it immediately
+  - Player may freely choose to draw even if they have playable cards
+  - After drawing, player may play any playable card OR pass (end turn)
+  - Each turn allows at most one draw
+  - If no playable cards and deck is empty, player must pass
   - First player to empty hand wins
   - Initial hand: 5 cards each
 """
@@ -92,7 +95,9 @@ class BlazingEightsEnv:
             self.rng = np.random.default_rng(seed)
 
         # Build & shuffle deck
-        deck = list(range(NUM_CARDS))
+        # In 2-player games, remove Q cards (reverse has no effect)
+        deck = [c for c in range(NUM_CARDS)
+                if not (self.num_players == 2 and card_rank(c) == RANK_Q)]
         self.rng.shuffle(deck)
 
         # Deal 5 cards each
