@@ -1,67 +1,77 @@
 # Blazing Eights — RL Agent
 
-Self-play PPO agent for the Blazing Eights card game.
+Self-play PPO agent for the Blazing Eights card game (UNO variant with custom special cards).
 
 ## Setup
 
 ```bash
-pip install torch numpy
+pip install torch numpy tqdm
 ```
 
 ## Files
 
 - `blazing_env.py` — Game environment (2-5 players)
-- `train.py` — PPO self-play training
+- `train.py` — PPO self-play training with greedy warmup
+- `versus.py` — Human vs AI interactive game
 - `play.py` — Real-time play assistant (input game state, get best move)
+- `train_colab.ipynb` — Google Colab GPU training notebook
+
+## Game Rules
+
+**52 cards** (standard deck, Q removed in 2-player) + **4 Swap cards**
+
+| Card | Effect |
+|------|--------|
+| 8 | Wild — choose a suit for next player |
+| K | All other players draw 1 card |
+| Q | Reverse direction (removed in 2-player games) |
+| J | Skip next player |
+| Swap | Swap entire hand with next player (always playable; next card must match the card before the Swap) |
+
+- **Match** top card by suit or rank (8 and Swap are exceptions)
+- **Free draw**: you may draw even if you have playable cards
+- **After drawing**: play any legal card OR pass (one draw per turn max)
+- **Stalemate**: if all players pass without drawing, game ends (fewest cards wins)
+- **Win**: first to empty hand
+- **Initial hand**: 5 cards each
 
 ## Training
 
 ```bash
-# Train a 2-player agent (~10min on CPU for 100k episodes)
+# 2-player (~20min on CPU, 100k episodes)
 python train.py --num_players 2 --episodes 100000
 
-# Train for 3 players (may need more episodes)
-python train.py --num_players 3 --episodes 200000
+# Skip greedy warmup
+python train.py --num_players 2 --episodes 100000 --greedy_warmup 0
 
 # Custom hyperparams
 python train.py --num_players 4 --episodes 300000 --lr 1e-4 --ent_coef 0.02
 ```
 
-Training saves checkpoints every 10k episodes and a final model.
+Training features:
+- **Greedy warmup**: behavioral cloning on greedy play before PPO (default 2000 games)
+- **CPU/GPU split**: game simulation on CPU, PPO updates on GPU (avoids transfer overhead)
+- **CSV log**: `{save_path}_log.csv` with avg_len, loss, vs_greedy win rate every 10k episodes
+- Checkpoints every 10k episodes
 
-## Real-time Play Assistant
-
-After training, use the assistant during a real game:
+## Play vs AI
 
 ```bash
-python play.py --model blazing_ppo_final.pt --num_players 3
+python versus.py --model blazing_ppo_2p_final.pt
+python versus.py --model blazing_ppo_2p_final.pt --num_players 3
+python versus.py --model blazing_ppo_2p_final.pt --show_ai  # show AI hand (debug)
 ```
 
-It will prompt you for:
-1. Your hand (e.g., `8h,Ks,3d,SWAP`)
-2. Top discard card (e.g., `6d`)
-3. Active suit if an 8 was played
-4. Direction (cw/ccw)
-5. Other players' hand sizes
-6. Approximate deck size
+Controls: number to play card, `d` to draw, `p` to pass, `q` to quit.
 
-Then shows ranked action recommendations with probabilities.
+## Play Assistant
 
-## Game Rules
+Input your game state and get ranked action recommendations:
 
-- **56 cards**: standard 52 + 4 Swap cards
-- **Match**: suit or rank of top card
-- **8**: Wild — choose a suit for next player
-- **K**: All other players draw 1
-- **Q**: Reverse direction (no effect in 2-player)
-- **J**: Skip next player
-- **Swap**: Swap your entire hand with next player (playable anytime, no match needed)
-- **Can't play**: Draw 1, play it if legal
-- **Win**: First to empty hand
+```bash
+python play.py --model blazing_ppo_2p_final.pt --num_players 2
+```
 
-## Tips for Better Training
+## Colab GPU Training
 
-1. **Train per player count** — the optimal policy differs significantly for 2 vs 5 players.
-2. **Increase episodes for more players** — larger games have more variance, need more samples.
-3. **Opponent modeling** — after self-play, you can fine-tune against specific opponent behaviors by replacing some players with heuristic bots that mimic your friends' tendencies.
-4. **Curriculum** — start training with 2 players, then use the trained model to initialize training for 3+ players.
+Open `train_colab.ipynb` in Google Colab for GPU-accelerated training. See notebook for setup instructions.
